@@ -1,22 +1,15 @@
 // @flow
 import React, { useEffect, createRef, useRef } from 'react';
-import ScratchBlocks from 'scratch-blocks';
 
-import javascript from '../../generators/javascript';
-import javascriptEvents from '../../generators/javascript/events';
-import javascriptControl from '../../generators/javascript/control';
-
-javascript(ScratchBlocks);
-javascriptEvents(ScratchBlocks);
-javascriptControl(ScratchBlocks);
+import ScratchBlocks from '../../lib/koov-scratch-blocks';
 
 function KoovBlocks() {
-  const blocklyRef = createRef();
+  const ScratchBlocksRef = createRef();
   const workspace = useRef();
   const project = useRef();
 
   useEffect(() => {
-    workspace.current = ScratchBlocks.inject(blocklyRef.current, {
+    workspace.current = ScratchBlocks.inject(ScratchBlocksRef.current, {
       toolbox,
       media: '../../media/',
       zoom: {
@@ -36,7 +29,7 @@ function KoovBlocks() {
     // For debugger only
     window.ws = workspace.current;
     window.ScratchBlocks = ScratchBlocks;
-  }, [blocklyRef]);
+  }, [ScratchBlocksRef]);
 
   function logWSXml() {
     const wsDom = ScratchBlocks.Xml.workspaceToDom(workspace.current);
@@ -67,14 +60,16 @@ function KoovBlocks() {
     ScratchBlocks.JavaScript.STATEMENT_PREFIX = 'highlightBlock(%1);\n';
     ScratchBlocks.JavaScript.addReservedWords('highlightBlock');
     if (workspace.current) {
-      // workspace.current.highlightBlock('control_wait', true);
-      console.log(workspace.current.getBlockById('xg73mSK5$6ic82?iWWde'))
+      workspace.current.highlightBlock('I[.G*UrS2)}OXvBL7^(m', true);
     }
   }
 
   return (
     <>
-      <div ref={blocklyRef} style={{ height: '100vh', width: '100%' }}></div>
+      <div
+        ref={ScratchBlocksRef}
+        style={{ height: '100vh', width: '100%' }}
+      ></div>
       <button
         onClick={logWSXml}
         style={{ position: 'absolute', right: 10, top: 10 }}
