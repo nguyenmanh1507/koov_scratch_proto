@@ -1,12 +1,15 @@
 // @flow
 import React, { useEffect, createRef, useRef } from 'react';
+import { useDispatch } from 'react-redux';
 
 import ScratchBlocks from '../../lib/koov-scratch-blocks';
+import { activeProcedures } from '../../reducers';
 
 function KoovBlocks() {
   const ScratchBlocksRef = createRef();
   const workspace = useRef();
   const project = useRef();
+  const dispatch = useDispatch();
 
   useEffect(() => {
     workspace.current = ScratchBlocks.inject(ScratchBlocksRef.current, {
@@ -26,10 +29,18 @@ function KoovBlocks() {
 
     workspace.current.scrollbar.set(0, 0);
 
+    // Custom procedures
+    ScratchBlocks.Procedures.externalProcedureDefCallback = (
+      mutator,
+      callback,
+    ) => {
+      dispatch(activeProcedures({ mutator, callback }));
+    };
+
     // For debugger only
     window.ws = workspace.current;
     window.ScratchBlocks = ScratchBlocks;
-  }, [ScratchBlocksRef]);
+  }, [ScratchBlocksRef, dispatch]);
 
   function logWSXml() {
     const wsDom = ScratchBlocks.Xml.workspaceToDom(workspace.current);
@@ -124,6 +135,13 @@ const toolbox = `
     <block type="control_if_else"/>
     <block id="wait_until" type="control_wait_until"/>
     <block id="repeat_until" type="control_repeat_until"/>
+  </category>
+  <category
+    name="%{BKY_CATEGORY_MYBLOCKS}"
+    id="myBlocks"
+    colour="#FF6680"
+    secondaryColour="#FF4D6A"
+    custom="PROCEDURE">
   </category>
 </xml>
 `;
