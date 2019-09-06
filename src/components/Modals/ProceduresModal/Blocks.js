@@ -1,22 +1,23 @@
 // @flow
-import React, { useEffect, createRef, useRef } from 'react';
-import { useSelector } from 'react-redux';
+import React, { Component, createRef } from 'react';
+import { connect } from 'react-redux';
 
 import ScratchBlocks from '../../../lib/koov-scratch-blocks';
 
-const Blocks = () => {
-  const blocksRef = createRef();
-  const workspace: ScratchBlocks = useRef();
-  const mutationRoot: ScratchBlocks = useRef();
+type Props = {
+  procedures: Object,
+};
+class Blocks extends Component<Props> {
+  blocksRef: any = createRef();
+  workspace: ScratchBlocks = null;
+  mutationRoot: ScratchBlocks = null;
 
-  const { mutator } = useSelector(({ procedures }) => procedures);
-
-  useEffect(() => {
-    if (!blocksRef.current) return;
+  componentDidMount() {
+    if (!this.blocksRef.current) return;
     // @todo This is a hack to make there be no toolbox.
     const oldDefaultToolbox = ScratchBlocks.Blocks.defaultToolbox;
     ScratchBlocks.Blocks.defaultToolbox = null;
-    workspace.current = ScratchBlocks.inject(blocksRef.current, {
+    this.workspace = ScratchBlocks.inject(this.blocksRef.current, {
       toolbox: null,
       media: '/media/',
       zoom: {
@@ -30,44 +31,53 @@ const Blocks = () => {
     });
     ScratchBlocks.Blocks.defaultToolbox = oldDefaultToolbox;
 
-    mutationRoot.current = workspace.current.newBlock('procedures_declaration');
+    this.mutationRoot = this.workspace.newBlock('procedures_declaration');
     // Make the declaration immovable, undeletable and have no context menu
-    mutationRoot.current.setMovable(false);
-    mutationRoot.current.setDeletable(false);
-    mutationRoot.current.contextMenu = false;
+    this.mutationRoot.setMovable(false);
+    this.mutationRoot.setDeletable(false);
+    this.mutationRoot.contextMenu = false;
 
-    workspace.current.addChangeListener(() => {
-      mutationRoot.current.onChangeFn();
+    this.workspace.addChangeListener(() => {
+      this.mutationRoot.onChangeFn();
       // Keep the block centered on the workspace
-      const metrics = workspace.current.getMetrics();
-      const { x, y } = mutationRoot.current.getRelativeToSurfaceXY();
-      const dy = metrics.viewHeight / 2 - mutationRoot.current.height / 2 - y;
-      let dx = metrics.viewWidth / 2 - mutationRoot.current.width / 2 - x;
+      const metrics = this.workspace.getMetrics();
+      const { x, y } = this.mutationRoot.getRelativeToSurfaceXY();
+      const dy = metrics.viewHeight / 2 - this.mutationRoot.height / 2 - y;
+      let dx = metrics.viewWidth / 2 - this.mutationRoot.width / 2 - x;
       // If the procedure declaration is wider than the view width,
       // keep the right-hand side of the procedure in view.
-      if (mutationRoot.current.width > metrics.viewWidth) {
-        dx = metrics.viewWidth - mutationRoot.current.width - x;
+      if (this.mutationRoot.width > metrics.viewWidth) {
+        dx = metrics.viewWidth - this.mutationRoot.width - x;
       }
-      mutationRoot.current.moveBy(dx, dy);
+      this.mutationRoot.moveBy(dx, dy);
     });
 
-    mutationRoot.current.domToMutation(mutator);
-    mutationRoot.current.initSvg();
-    mutationRoot.current.render();
-    // setWrap({ warp: mutationRoot.current.getWarp() });
+    this.mutationRoot.domToMutation(this.props.procedures.mutator);
+    this.mutationRoot.initSvg();
+    this.mutationRoot.render();
+    // setWrap({ warp: this.mutationRoot.getWarp() });
     // Allow the initial events to run to position this block, then focus.
     setTimeout(() => {
-      mutationRoot.current.focusLastEditor_();
+      this.mutationRoot.focusLastEditor_();
     });
+  }
 
-    return () => {
-      if (workspace.current) {
-        workspace.current.dispose();
-      }
-    };
-  }, [blocksRef, mutator]);
+  componentWillUnmount() {
+    if (this.workspace) {
+      this.workspace.dispose();
+    }
+  }
 
-  return <div ref={blocksRef} style={{ width: 700, height: 200 }} />;
-};
+  render() {
+    return <div ref={this.blocksRef} style={{ width: 700, height: 200 }} />;
+  }
 
-export default Blocks;
+  // const { mutator } = useSelector(({ procedures }) => procedures);
+}
+
+const mapStateToProps = ({ procedures }) => ({ procedures });
+
+export default connect(
+  mapStateToProps,
+  null,
+)(Blocks);
