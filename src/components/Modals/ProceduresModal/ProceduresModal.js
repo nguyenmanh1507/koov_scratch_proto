@@ -13,25 +13,23 @@ const customStyles = {
     right: 'auto',
     bottom: 'auto',
     marginRight: '-50%',
-    transform: 'translate(-50%, -50%)',
-  },
+    transform: 'translate(-50%, -50%)'
+  }
 };
 
 const ProceduresModal = () => {
   const isOpen = useSelector(({ procedures }) => procedures.active);
   const dispatch = useDispatch();
 
-  function onRequestClose(mutator) {
-    dispatch(deactiveProcedures({ mutator }));
+  function onRequestClose() {
+    dispatch(deactiveProcedures({}));
   }
 
   return (
     <Modal
       isOpen={isOpen}
-      onAfterOpen={() => {}}
       onRequestClose={onRequestClose}
       style={customStyles}
-      // componentRef={setBlocks}
       contentLabel="Example Modal"
     >
       <Blocks />

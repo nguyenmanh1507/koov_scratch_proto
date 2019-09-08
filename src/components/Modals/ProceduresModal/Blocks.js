@@ -3,9 +3,10 @@ import React, { Component, createRef } from 'react';
 import { connect } from 'react-redux';
 
 import ScratchBlocks from '../../../lib/koov-scratch-blocks';
+import { deactiveProcedures } from '../../../reducers';
 
 type Props = {
-  procedures: Object,
+  procedures: Object
 };
 class Blocks extends Component<Props> {
   blocksRef: any = createRef();
@@ -23,11 +24,11 @@ class Blocks extends Component<Props> {
       zoom: {
         controls: false,
         wheel: false,
-        startScale: 0.9,
+        startScale: 0.9
       },
       comments: false,
       collapse: false,
-      scrollbars: true,
+      scrollbars: true
     });
     ScratchBlocks.Blocks.defaultToolbox = oldDefaultToolbox;
 
@@ -69,15 +70,52 @@ class Blocks extends Component<Props> {
   }
 
   render() {
-    return <div ref={this.blocksRef} style={{ width: 700, height: 200 }} />;
+    const { handleCancel } = this.props;
+
+    return (
+      <>
+        <div
+          ref={this.blocksRef}
+          style={{ width: 700, height: 200 }}
+          className="mb-5"
+        />
+        <button
+          className="btn btn-primary mr-4"
+          onClick={() => {
+            const newMutation = this.mutationRoot
+              ? this.mutationRoot.mutationToDom(true)
+              : null;
+            handleCancel(newMutation);
+          }}
+        >
+          Submit
+        </button>
+        <button
+          className="btn btn-secondary"
+          onClick={() => {
+            handleCancel();
+          }}
+        >
+          Cancel
+        </button>
+      </>
+    );
   }
 
   // const { mutator } = useSelector(({ procedures }) => procedures);
 }
 
 const mapStateToProps = ({ procedures }) => ({ procedures });
+const mapDispatchToProps = dispatch => ({
+  // handleSubmit: ({ mutator, callback }) => {
+  //   dispatch(activeProcedures({ mutator, callback }));
+  // },
+  handleCancel: (mutator = null) => {
+    dispatch(deactiveProcedures({ mutator, callback: null }));
+  }
+});
 
 export default connect(
   mapStateToProps,
-  null,
+  mapDispatchToProps
 )(Blocks);

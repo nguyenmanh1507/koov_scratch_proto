@@ -7,20 +7,26 @@ const { activeProcedures, deactiveProcedures } = createActions({
   ACTIVE_PROCEDURES: ({ mutator, callback }) => ({
     active: true,
     mutator,
-    callback,
+    callback
   }),
-  DEACTIVE_PROCEDURES: () => ({ active: false, mutator: null, callback: null }),
+  DEACTIVE_PROCEDURES: ({ mutator = null }) => ({
+    active: false,
+    mutator,
+    callback: null
+  })
 });
 
 const reducer = handleActions(
   {
     [combineActions(activeProcedures, deactiveProcedures)]: (
       state,
-      { payload: { mutator, callback }, type },
+      { payload: { mutator, callback }, type }
     ) => {
       if (type === 'DEACTIVE_PROCEDURES') {
         if (mutator) {
+          console.log({mutator})
           state.procedures.callback(mutator);
+          mutator = null;
         }
       }
 
@@ -30,12 +36,12 @@ const reducer = handleActions(
           ...state.procedures,
           active: !state.procedures.active,
           mutator,
-          callback,
-        },
+          callback
+        }
       };
-    },
+    }
   },
-  defaultState,
+  defaultState
 );
 
 export { activeProcedures };
