@@ -1,26 +1,48 @@
 // @flow
-import React, { useEffect, createRef, useRef } from 'react';
+import React, { Component } from 'react';
 import {
-  useDispatch
+  connect,
   // useSelector
 } from 'react-redux';
 
 import ScratchBlocks from '../../lib/koov-scratch-blocks';
 import { activeProcedures } from '../../reducers';
 
-function KoovBlocks() {
-  const ScratchBlocksRef = createRef();
-  const workspace = useRef();
-  const headlessWs = useRef();
-  const project = useRef();
-  const dispatch = useDispatch();
+type Props = {
+  activeProcedures: (params: {
+    mutator: Object,
+    callback: () => void,
+  }) => void,
+};
+
+type State = {
+  tabMode: string,
+};
+
+class KoovBlocks extends Component<Props, State> {
+  ScratchBlocksRef: ?HTMLDivElement;
+  workspace: ScratchBlocks = null;
+  headlessWs: ScratchBlocks = null;
+  project = null;
+  domText = '';
   // const procedures = useSelector(({ procedures }) => procedures);
 
-  useEffect(() => {
-    headlessWs.current = new ScratchBlocks.Workspace();
+  state = {
+    tabMode: 'code',
+  };
+
+  constructor() {
+    super();
+    this.domText = window.localStorage.getItem('@@ws');
+  }
+
+  componentDidMount() {
+    const { activeProcedures } = this.props;
+
+    this.headlessWs = new ScratchBlocks.Workspace();
     // console.log(wsHeadless.current);
 
-    workspace.current = ScratchBlocks.inject(ScratchBlocksRef.current, {
+    this.workspace = ScratchBlocks.inject(this.ScratchBlocksRef, {
       toolbox,
       media: '../../media/',
       zoom: {
@@ -29,20 +51,20 @@ function KoovBlocks() {
         startScale: 0.7,
         maxScale: 3,
         minScale: 0.3,
-        scaleSpeed: 1.2
+        scaleSpeed: 1.2,
       },
       grid: { spacing: 30, length: 3, colour: '#ccc', snap: true },
-      trashcan: true
+      trashcan: true,
     });
 
-    workspace.current.scrollbar.set(0, 0);
+    this.workspace.scrollbar.set(0, 0);
 
     // Custom procedures
     ScratchBlocks.Procedures.externalProcedureDefCallback = (
       mutator,
-      callback
+      callback,
     ) => {
-      dispatch(activeProcedures({ mutator, callback }));
+      activeProcedures({ mutator, callback });
     };
 
     // headlessWs.current.addChangeListener(event => {
@@ -59,164 +81,207 @@ function KoovBlocks() {
     //   mirrorEvent.run(true);
     // });
 
-    workspace.current.addChangeListener(event => {
-      if (event.type === ScratchBlocks.Events.UI) {
-        return; // Don't mirror UI events.
-      }
+    this.workspace.addChangeListener(this.handleChangeWs);
 
-      const json = event.toJson();
-      console.log({ json });
-      // const mirrorEvent = ScratchBlocks.Events.fromJson(
-      //   json,
-      //   headlessWs.current
-      // );
-      // mirrorEvent.run(true);
-    });
+    this.showCode();
 
     // For debugger only
-    window.ws = workspace.current;
+    window.ws = this.workspace;
     window.ScratchBlocks = ScratchBlocks;
+  }
 
-    return () => {
-      if (headlessWs.current && workspace.current) {
-        headlessWs.current.dispose();
-        workspace.current.dispose();
+  componentDidUpdate(prevProps, prevState) {
+    const { tabMode } = this.state;
+    if (prevState.tabMode !== this.state.tabMode) {
+      switch (tabMode) {
+        case 'code':
+          this.showCode();
+          return;
+        case 'procedures':
+          this.showProcedures();
+          return;
+        default:
+          return;
       }
-    };
-  }, [ScratchBlocksRef, dispatch]);
-
-  // useEffect(() => {
-  //   window.setTimeout(() => {
-  //     if (procedures.active === false) {
-  //       console.log('Update toolbox');
-  //       workspace.current.refreshToolboxSelection_();
-  //       workspace.current.toolbox_.scrollToCategoryById('myBlocks');
-  //     }
-  //   }, 2000);
-  // }, [procedures]);
-
-  function logWSXml() {
-    const wsDom = ScratchBlocks.Xml.workspaceToDom(workspace.current);
-    const domText = ScratchBlocks.Xml.domToText(wsDom);
-    console.log(wsDom);
-    console.log(domText);
-  }
-
-  function saveWorkspace() {
-    const wsDom = ScratchBlocks.Xml.workspaceToDom(headlessWs.current);
-    project.current = ScratchBlocks.Xml.domToText(wsDom);
-
-    window.localStorage.setItem('@@ws', project.current);
-  }
-
-  function loadWorkspace() {
-    const domText = window.localStorage.getItem('@@ws');
-    const dom = ScratchBlocks.Xml.textToDom(domText);
-    headlessWs.current.clear();
-    ScratchBlocks.Xml.domToWorkspace(dom, headlessWs.current);
-    // workspace.current.clear();
-    // ScratchBlocks.Xml.domToWorkspace(dom, workspace.current);
-    // const allBlocks = headlessWs.current.getAllBlocks();
-    // const codeBlocks = allBlocks.filter(
-    //   block => block.type !== 'procedures_definition'
-    // );
-    // console.log({ codeBlocks });
-    // const a = ScratchBlocks.Xml.textToDom(codeBlocks.join());
-    // console.log({ a });
-    const domWs = new window.DOMParser();
-    const a = domWs.parseFromString(domText, 'text/html');
-    const xml = document.createElement('xml');
-    xml.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
-
-    console.log({ a: a.querySelector('xml').children });
-    console.log({ a: a.querySelectorAll('block') });
-    a.querySelectorAll('block').forEach(a1 => {
-      if (a1.getAttribute('type') === 'procedures_definition') {
-        xml.innerHTML += a1.outerHTML;
-      }
-    });
-
-    // const childs = a.querySelector('xml').children;
-    // for (let i = 0; i <= childs.length - 1; i++) {
-    //   console.log(childs[i].getAttribute('type') !== 'procedures_definition');
-    //   if (childs[i].getAttribute('type') !== 'procedures_definition') {
-    //     xml.innerHTML += childs[i].outerHTML;
-    //   }
-    // }
-
-    workspace.current.clear();
-    ScratchBlocks.Xml.domToWorkspace(xml, workspace.current);
-    console.log(xml);
-  }
-
-  function genJSCode() {
-    const code = ScratchBlocks.JavaScript.workspaceToCode(workspace.current);
-    console.log(code);
-  }
-
-  function highlightBlock() {
-    ScratchBlocks.JavaScript.STATEMENT_PREFIX = 'highlightBlock(%1);\n';
-    ScratchBlocks.JavaScript.addReservedWords('highlightBlock');
-    if (workspace.current) {
-      workspace.current.highlightBlock(')[dIl1~SRuZuq7RtMu3.', true);
     }
   }
 
-  function refreshToolbox() {
-    workspace.current.refreshToolboxSelection_();
-    workspace.current.toolbox_.scrollToCategoryById('myBlocks');
+  componentWillUnmount() {
+    if (this.headlessWs && this.workspace) {
+      this.headlessWs.dispose();
+      this.workspace.dispose();
+    }
   }
 
-  function doSomething() {
-    // workspace.current.getAllBlocks().forEach(block => {
-    //   console.log(block.type);
-    //   if (block.type === 'procedures_definition') {
-    //     const dom = ScratchBlocks.Xml.blockToDom(block);
-    //     block.setDisabled(true);
-    //     block.setEditable(false);
-    //     // block.setStyle()
-    //     console.log({ dom: ScratchBlocks.Xml.domToText(dom) });
-    //   }
-    // });
-    const dom = ScratchBlocks.Xml.workspaceToDom(headlessWs.current);
+  handleChangeWs = event => {
+    if (event.type === ScratchBlocks.Events.UI) {
+      return;
+    }
+
+    const json = event.toJson();
+    console.log({ type: json.type });
+  };
+
+  logWSXml = () => {
+    const wsDom = ScratchBlocks.Xml.workspaceToDom(this.workspace);
+    const domText = ScratchBlocks.Xml.domToText(wsDom);
+    console.log(wsDom);
+    console.log(domText);
+  };
+
+  saveWorkspace = () => {
+    const wsDom = ScratchBlocks.Xml.workspaceToDom(this.headlessWs);
+    this.project = ScratchBlocks.Xml.domToText(wsDom);
+
+    window.localStorage.setItem('@@ws', this.project);
+  };
+
+  loadWorkspace = () => {};
+
+  genJSCode = () => {
+    const code = ScratchBlocks.JavaScript.workspaceToCode(this.workspace);
+    console.log(code);
+  };
+
+  highlightBlock = () => {
+    ScratchBlocks.JavaScript.STATEMENT_PREFIX = 'highlightBlock(%1);\n';
+    ScratchBlocks.JavaScript.addReservedWords('highlightBlock');
+    if (this.workspace) {
+      this.workspace.highlightBlock(')[dIl1~SRuZuq7RtMu3.', true);
+    }
+  };
+
+  refreshToolbox = () => {
+    this.workspace.refreshToolboxSelection_();
+    this.workspace.toolbox_.scrollToCategoryById('myBlocks');
+  };
+
+  doSomething = () => {
+    const dom = ScratchBlocks.Xml.workspaceToDom(this.headlessWs);
     console.log({ dom: ScratchBlocks.Xml.domToPrettyText(dom) });
-    // const block = workspace.current.getBlockById('0p?V)vonuOzXWLDCvYP^');
-    // console.log({ block: block.type });
-    // block.unplug();
-  }
+  };
 
-  return (
-    <>
-      <div style={{ height: 40, display: 'flex', width: 300 }}>
-        <button style={{ flexGrow: 1, flexShrink: 0 }}>Main</button>
-        <button style={{ flexGrow: 1, flexShrink: 0 }}>Custom block</button>
-      </div>
-      <div
-        ref={ScratchBlocksRef}
-        style={{ height: '100vh', width: '100%' }}
-      ></div>
-      <div
-        style={{
-          position: 'absolute',
-          right: 10,
-          top: 10,
-          display: 'flex',
-          flexDirection: 'column'
-        }}
-      >
-        <button onClick={logWSXml}>Log Workspace XML</button>
-        <button onClick={saveWorkspace}>Save Workspace</button>
-        <button onClick={loadWorkspace}>Load Workspace</button>
-        <button onClick={genJSCode}>Generate JS code</button>
-        <button onClick={highlightBlock}>Highlight Block</button>
-        <button onClick={refreshToolbox}>Refresh toolbox</button>
-        <button onClick={doSomething}>Misc</button>
-      </div>
-    </>
-  );
+  setTabMode = (tabMode: string) => {
+    // this.workspace.removeChangeListener(this.handleChangeWs);
+    this.setState({ tabMode }, () => {
+      // this.workspace.addChangeListener(this.handleChangeWs);
+    });
+  };
+
+  showCode = () => {
+    const dom = ScratchBlocks.Xml.textToDom(this.domText);
+    this.headlessWs.clear();
+    ScratchBlocks.Xml.domToWorkspace(dom, this.headlessWs);
+    const domParser = new window.DOMParser();
+    const doc = domParser.parseFromString(this.domText, 'text/html');
+    const xml = document.createElement('xml');
+    xml.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+    const childs = doc.querySelector('xml').children;
+    for (let i = 0; i <= childs.length - 1; i++) {
+      if (childs[i].getAttribute('type') !== 'procedures_definition') {
+        xml.innerHTML += childs[i].outerHTML;
+      }
+    }
+
+    this.workspace.clear();
+    ScratchBlocks.Xml.domToWorkspace(xml, this.workspace);
+    console.log(xml);
+  };
+
+  showProcedures = () => {
+    const dom = ScratchBlocks.Xml.textToDom(this.domText);
+    this.headlessWs.clear();
+    ScratchBlocks.Xml.domToWorkspace(dom, this.headlessWs);
+    const domParser = new window.DOMParser();
+    const doc = domParser.parseFromString(this.domText, 'text/html');
+    const xml = document.createElement('xml');
+    xml.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+    doc.querySelectorAll('block').forEach(el => {
+      if (el.getAttribute('type') === 'procedures_definition') {
+        xml.innerHTML += el.outerHTML;
+      }
+    });
+
+    this.workspace.clear();
+    ScratchBlocks.Xml.domToWorkspace(xml, this.workspace);
+    console.log(xml);
+  };
+
+  render() {
+    const { tabMode } = this.state;
+
+    return (
+      <>
+        <div style={{ height: 40, display: 'flex', width: 300 }}>
+          <button
+            style={{
+              flexGrow: 1,
+              flexShrink: 0,
+              backgroundColor: tabMode === 'code' ? 'red' : 'white',
+            }}
+            onClick={() => {
+              this.setTabMode('code');
+            }}
+          >
+            Main
+          </button>
+          <button
+            style={{
+              flexGrow: 1,
+              flexShrink: 0,
+              backgroundColor: tabMode === 'procedures' ? 'red' : 'white',
+            }}
+            onClick={() => {
+              this.setTabMode('procedures');
+            }}
+          >
+            Custom block
+          </button>
+        </div>
+        <div
+          ref={ref => {
+            this.ScratchBlocksRef = ref;
+          }}
+          style={{ height: 'calc(100vh - 40px)', width: '100%' }}
+        ></div>
+        <div
+          style={{
+            position: 'absolute',
+            right: 10,
+            top: 10,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <button onClick={this.logWSXml}>Log Workspace XML</button>
+          <button onClick={this.saveWorkspace}>Save Workspace</button>
+          <button onClick={this.loadWorkspace}>Load Workspace</button>
+          <button onClick={this.genJSCode}>Generate JS code</button>
+          <button onClick={this.highlightBlock}>Highlight Block</button>
+          <button onClick={this.refreshToolbox}>Refresh toolbox</button>
+          <button onClick={this.doSomething}>Misc</button>
+        </div>
+      </>
+    );
+  }
 }
 
-export default KoovBlocks;
+const mapDispatchToProp = dispatch => ({
+  activeProcedures: ({
+    mutator,
+    callback,
+  }: {
+    mutator: Object,
+    callback: () => void,
+  }) => {
+    dispatch(activeProcedures({ mutator, callback }));
+  },
+});
+
+export default connect(
+  null,
+  mapDispatchToProp,
+)(KoovBlocks);
 
 const toolbox = `
 <xml id="toolbox" style="display: none">

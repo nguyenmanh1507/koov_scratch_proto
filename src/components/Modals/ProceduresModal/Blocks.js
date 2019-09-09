@@ -6,7 +6,8 @@ import ScratchBlocks from '../../../lib/koov-scratch-blocks';
 import { deactiveProcedures } from '../../../reducers';
 
 type Props = {
-  procedures: Object
+  procedures: Object,
+  handleCancel: (mutator?: any) => void,
 };
 class Blocks extends Component<Props> {
   blocksRef: any = createRef();
@@ -24,11 +25,11 @@ class Blocks extends Component<Props> {
       zoom: {
         controls: false,
         wheel: false,
-        startScale: 0.9
+        startScale: 0.9,
       },
       comments: false,
       collapse: false,
-      scrollbars: true
+      scrollbars: true,
     });
     ScratchBlocks.Blocks.defaultToolbox = oldDefaultToolbox;
 
@@ -112,10 +113,10 @@ const mapDispatchToProps = dispatch => ({
   // },
   handleCancel: (mutator = null) => {
     dispatch(deactiveProcedures({ mutator, callback: null }));
-  }
+  },
 });
 
 export default connect(
   mapStateToProps,
-  mapDispatchToProps
+  mapDispatchToProps,
 )(Blocks);
