@@ -22,7 +22,7 @@ ScratchBlocks.BlockSvg.prototype.setHighlighted = function(highlighted) {
   if (highlighted) {
     this.svgPath_.setAttribute(
       'filter',
-      'url(#' + this.workspace.options.stackGlowFilterId + ')'
+      'url(#' + this.workspace.options.stackGlowFilterId + ')',
     );
   } else {
     ScratchBlocks.utils.removeAttribute(this.svgPath_, 'filter');
