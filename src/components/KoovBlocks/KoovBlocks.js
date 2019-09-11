@@ -6,13 +6,16 @@ import {
 } from 'react-redux';
 
 import ScratchBlocks from '../../lib/koov-scratch-blocks';
-import { activeProcedures } from '../../reducers';
+import ProceduresModal from '../Modals/ProceduresModal';
+import WorkspaceModal from '../Modals/WorkspaceModal';
+import { activeProcedures, showModal } from '../../reducers';
 
 type Props = {
   activeProcedures: (params: {
     mutator: Object,
     callback: () => void,
   }) => void,
+  showWorkspaceModal: (modalName: string) => void,
 };
 
 type State = {
@@ -21,11 +24,11 @@ type State = {
 
 class KoovBlocks extends Component<Props, State> {
   ScratchBlocksRef: ?HTMLDivElement;
-  workspace: ScratchBlocks = null;
-  headlessWs: ScratchBlocks = null;
+  headlessBlocksRef: ?HTMLDivElement;
+  workspace: ScratchBlocks.Workspace = null;
+  headlessWs: ScratchBlocks.Workspace = null;
   project = null;
-  domText = '';
-  // const procedures = useSelector(({ procedures }) => procedures);
+  allowSync = false;
 
   state = {
     tabMode: 'code',
@@ -33,14 +36,16 @@ class KoovBlocks extends Component<Props, State> {
 
   constructor() {
     super();
-    this.domText = window.localStorage.getItem('@@ws');
+    const domText = window.localStorage.getItem('@@ws');
+    const dom = ScratchBlocks.Xml.textToDom(domText);
+    this.headlessWs = new ScratchBlocks.Workspace();
+    ScratchBlocks.Xml.domToWorkspace(dom, this.headlessWs);
+    const toolbox = new ScratchBlocks.Toolbox(this.headlessWs);
+    console.log({ toolbox: toolbox });
   }
 
   componentDidMount() {
     const { activeProcedures } = this.props;
-
-    this.headlessWs = new ScratchBlocks.Workspace();
-    // console.log(wsHeadless.current);
 
     this.workspace = ScratchBlocks.inject(this.ScratchBlocksRef, {
       toolbox,
@@ -56,8 +61,6 @@ class KoovBlocks extends Component<Props, State> {
       grid: { spacing: 30, length: 3, colour: '#ccc', snap: true },
       trashcan: true,
     });
-
-    this.workspace.scrollbar.set(0, 0);
 
     // Custom procedures
     ScratchBlocks.Procedures.externalProcedureDefCallback = (
@@ -92,7 +95,7 @@ class KoovBlocks extends Component<Props, State> {
 
   componentDidUpdate(prevProps, prevState) {
     const { tabMode } = this.state;
-    if (prevState.tabMode !== this.state.tabMode) {
+    if (prevState.tabMode !== tabMode) {
       switch (tabMode) {
         case 'code':
           this.showCode();
@@ -119,12 +122,23 @@ class KoovBlocks extends Component<Props, State> {
     }
 
     const json = event.toJson();
-    console.log({ type: json.type });
+
+    if (event.type === ScratchBlocks.Events.FINISHED_LOADING) {
+      console.log({ type: json.type });
+      this.allowSync = true;
+      return;
+    }
+
+    if (this.allowSync) {
+      console.log({ type: json.type });
+      const mirrorEvents = ScratchBlocks.Events.fromJson(json, this.headlessWs);
+      mirrorEvents.run(true);
+    }
   };
 
   logWSXml = () => {
     const wsDom = ScratchBlocks.Xml.workspaceToDom(this.workspace);
-    const domText = ScratchBlocks.Xml.domToText(wsDom);
+    const domText = ScratchBlocks.Xml.domToPrettyText(wsDom);
     console.log(wsDom);
     console.log(domText);
   };
@@ -153,7 +167,7 @@ class KoovBlocks extends Component<Props, State> {
 
   refreshToolbox = () => {
     this.workspace.refreshToolboxSelection_();
-    this.workspace.toolbox_.scrollToCategoryById('myBlocks');
+    // this.workspace.toolbox_.scrollToCategoryById('myBlocks');
   };
 
   doSomething = () => {
@@ -162,23 +176,40 @@ class KoovBlocks extends Component<Props, State> {
   };
 
   setTabMode = (tabMode: string) => {
-    // this.workspace.removeChangeListener(this.handleChangeWs);
-    this.setState({ tabMode }, () => {
-      // this.workspace.addChangeListener(this.handleChangeWs);
-    });
+    this.allowSync = false;
+    this.setState({ tabMode });
   };
 
   showCode = () => {
-    const dom = ScratchBlocks.Xml.textToDom(this.domText);
-    this.headlessWs.clear();
-    ScratchBlocks.Xml.domToWorkspace(dom, this.headlessWs);
+    const dom = ScratchBlocks.Xml.workspaceToDom(this.headlessWs);
+    const domText = ScratchBlocks.Xml.domToText(dom);
     const domParser = new window.DOMParser();
-    const doc = domParser.parseFromString(this.domText, 'text/html');
+    const doc = domParser.parseFromString(domText, 'text/html');
     const xml = document.createElement('xml');
     xml.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
     const childs = doc.querySelector('xml').children;
     for (let i = 0; i <= childs.length - 1; i++) {
-      if (childs[i].getAttribute('type') !== 'procedures_definition') {
+      xml.innerHTML += childs[i].outerHTML;
+    }
+
+    this.workspace.clear();
+    ScratchBlocks.Xml.domToWorkspace(xml, this.workspace);
+    console.log(xml);
+  };
+
+  showProcedures = () => {
+    const dom = ScratchBlocks.Xml.workspaceToDom(this.headlessWs);
+    const domText = ScratchBlocks.Xml.domToText(dom);
+    const domParser = new window.DOMParser();
+    const doc = domParser.parseFromString(domText, 'text/html');
+    const xml = document.createElement('xml');
+    xml.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+    const childs = doc.querySelector('xml').children;
+    for (let i = 0; i <= childs.length - 1; i++) {
+      if (
+        childs[i].getAttribute('type') === 'procedures_definition' ||
+        childs[i].tagName === 'VARIABLES'
+      ) {
         xml.innerHTML += childs[i].outerHTML;
       }
     }
@@ -188,26 +219,14 @@ class KoovBlocks extends Component<Props, State> {
     console.log(xml);
   };
 
-  showProcedures = () => {
-    const dom = ScratchBlocks.Xml.textToDom(this.domText);
-    this.headlessWs.clear();
-    ScratchBlocks.Xml.domToWorkspace(dom, this.headlessWs);
-    const domParser = new window.DOMParser();
-    const doc = domParser.parseFromString(this.domText, 'text/html');
-    const xml = document.createElement('xml');
-    xml.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
-    doc.querySelectorAll('block').forEach(el => {
-      if (el.getAttribute('type') === 'procedures_definition') {
-        xml.innerHTML += el.outerHTML;
-      }
-    });
-
-    this.workspace.clear();
-    ScratchBlocks.Xml.domToWorkspace(xml, this.workspace);
-    console.log(xml);
+  handleProceduresModal = () => {
+    // this.setTabMode('procedures');
+    this.workspace.refreshToolboxSelection_();
+    // this.workspace.toolbox_.scrollToCategoryById('myBlocks');
   };
 
   render() {
+    const { showWorkspaceModal } = this.props;
     const { tabMode } = this.state;
 
     return (
@@ -223,7 +242,7 @@ class KoovBlocks extends Component<Props, State> {
               this.setTabMode('code');
             }}
           >
-            Main
+            Code
           </button>
           <button
             style={{
@@ -253,14 +272,52 @@ class KoovBlocks extends Component<Props, State> {
             flexDirection: 'column',
           }}
         >
-          <button onClick={this.logWSXml}>Log Workspace XML</button>
-          <button onClick={this.saveWorkspace}>Save Workspace</button>
-          <button onClick={this.loadWorkspace}>Load Workspace</button>
-          <button onClick={this.genJSCode}>Generate JS code</button>
-          <button onClick={this.highlightBlock}>Highlight Block</button>
-          <button onClick={this.refreshToolbox}>Refresh toolbox</button>
-          <button onClick={this.doSomething}>Misc</button>
+          <button onClick={this.logWSXml} className="btn btn-light btn-sm">
+            Log Workspace XML
+          </button>
+          <button
+            onClick={this.saveWorkspace}
+            className="btn btn-primary btn-sm"
+          >
+            Save Workspace
+          </button>
+          <button onClick={this.loadWorkspace} className="btn btn-light btn-sm">
+            Load Workspace
+          </button>
+          <button onClick={this.genJSCode} className="btn btn-light btn-sm">
+            Generate JS code
+          </button>
+          <button
+            onClick={this.highlightBlock}
+            className="btn btn-light btn-sm"
+          >
+            Highlight Block
+          </button>
+          <button
+            onClick={this.refreshToolbox}
+            className="btn btn-light btn-sm"
+          >
+            Refresh toolbox
+          </button>
+          <button
+            onClick={() => {
+              showWorkspaceModal('workspace-modal');
+            }}
+            className="btn btn-primary btn-sm"
+          >
+            Show headless WS
+          </button>
+          <button onClick={this.doSomething} className="btn btn-light btn-sm">
+            Misc
+          </button>
         </div>
+        <div
+          ref={ref => {
+            this.headlessBlocksRef = ref;
+          }}
+        ></div>
+        <WorkspaceModal ws={this.headlessWs} />
+        <ProceduresModal handleProceduresModal={this.handleProceduresModal} />
       </>
     );
   }
@@ -276,6 +333,9 @@ const mapDispatchToProp = dispatch => ({
   }) => {
     dispatch(activeProcedures({ mutator, callback }));
   },
+  showWorkspaceModal: modalName => {
+    dispatch(showModal(modalName));
+  },
 });
 
 export default connect(
@@ -286,7 +346,6 @@ export default connect(
 const toolbox = `
 <xml id="toolbox" style="display: none">
   <category name="%{BKY_CATEGORY_EVENTS}" id="events" colour="#FFD500" secondaryColour="#CC9900">
-    <block type="event_whenflagclicked"/>
     <block type="event_whenkeypressed"/>
   </category>
   <category name="%{BKY_CATEGORY_CONTROL}" id="control" colour="#2cc3ea" secondaryColour="#2cc3ea">
@@ -300,7 +359,6 @@ const toolbox = `
     <block type="control_if"/>
     <block type="control_if_else"/>
     <block id="wait_until" type="control_wait_until"/>
-    <block id="repeat_until" type="control_repeat_until"/>
   </category>
   <category
     name="%{BKY_CATEGORY_VARIABLES}"

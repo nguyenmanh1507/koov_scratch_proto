@@ -13,11 +13,15 @@ const customStyles = {
     right: 'auto',
     bottom: 'auto',
     marginRight: '-50%',
-    transform: 'translate(-50%, -50%)'
-  }
+    transform: 'translate(-50%, -50%)',
+  },
 };
 
-const ProceduresModal = () => {
+type Props = {
+  handleProceduresModal: () => void,
+};
+
+const ProceduresModal = ({ handleProceduresModal }: Props) => {
   const isOpen = useSelector(({ procedures }) => procedures.active);
   const dispatch = useDispatch();
 
@@ -32,7 +36,7 @@ const ProceduresModal = () => {
       style={customStyles}
       contentLabel="Example Modal"
     >
-      <Blocks />
+      <Blocks handleProceduresModal={handleProceduresModal} />
     </Modal>
   );
 };

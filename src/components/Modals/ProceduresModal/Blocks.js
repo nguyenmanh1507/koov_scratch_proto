@@ -7,6 +7,7 @@ import { deactiveProcedures } from '../../../reducers';
 
 type Props = {
   procedures: Object,
+  handleProceduresModal: () => void,
   handleCancel: (mutator?: any) => void,
 };
 class Blocks extends Component<Props> {
@@ -71,7 +72,7 @@ class Blocks extends Component<Props> {
   }
 
   render() {
-    const { handleCancel } = this.props;
+    const { handleCancel, handleProceduresModal } = this.props;
 
     return (
       <>
@@ -87,6 +88,7 @@ class Blocks extends Component<Props> {
               ? this.mutationRoot.mutationToDom(true)
               : null;
             handleCancel(newMutation);
+            handleProceduresModal();
           }}
         >
           Submit
