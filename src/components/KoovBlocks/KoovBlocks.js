@@ -203,9 +203,6 @@ class KoovBlocks extends Component<Props, State> {
       }
     }
 
-    xml.innerHTML +=
-      '<mutation proccode="a" argumentids="[]" argumentnames="[]" argumentdefaults="[]" warp="false"></mutation>';
-
     this.workspace.clear();
     ScratchBlocks.Xml.domToWorkspace(xml, this.workspace);
     this.workspace.refreshToolboxSelection_();
