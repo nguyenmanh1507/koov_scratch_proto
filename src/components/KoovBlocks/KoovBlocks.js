@@ -103,6 +103,7 @@ class KoovBlocks extends Component<Props, State> {
   }
 
   componentDidUpdate(prevProps, prevState) {
+    console.log(this.allowSync);
     const { tabMode } = this.state;
     if (prevState.tabMode !== tabMode) {
       switch (tabMode) {
@@ -116,6 +117,7 @@ class KoovBlocks extends Component<Props, State> {
           return;
       }
     }
+    this.allowSync = true;
   }
 
   componentWillUnmount() {
