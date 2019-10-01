@@ -1,7 +1,7 @@
 // @flow
 import React, { Component } from 'react';
 import {
-  connect,
+  connect
   // useSelector
 } from 'react-redux';
 
@@ -13,25 +13,28 @@ import { activeProcedures, showModal } from '../../reducers';
 type Props = {
   activeProcedures: (params: {
     mutator: Object,
-    callback: () => void,
+    callback: () => void
   }) => void,
-  showWorkspaceModal: (modalName: string) => void,
+  showWorkspaceModal: (modalName: string) => void
 };
 
 type State = {
-  tabMode: string,
+  tabMode: string
 };
 
 class KoovBlocks extends Component<Props, State> {
   ScratchBlocksRef: ?HTMLDivElement;
   headlessBlocksRef: ?HTMLDivElement;
+  trashRef: ?HTMLDivElement;
   workspace: ScratchBlocks.Workspace = null;
   headlessWs: ScratchBlocks.Workspace = null;
   project = null;
   allowSync = false;
+  blockDelete: ScratchBlocks.Block = null;
+  isOutside = false;
 
   state = {
-    tabMode: 'code',
+    tabMode: 'code'
   };
 
   constructor() {
@@ -56,10 +59,11 @@ class KoovBlocks extends Component<Props, State> {
         startScale: 0.7,
         maxScale: 3,
         minScale: 0.3,
-        scaleSpeed: 1.2,
+        scaleSpeed: 1.2
       },
       grid: { spacing: 30, length: 3, colour: '#ccc', snap: true },
       trashcan: true,
+      // toolboxCopy: true
     });
 
     this.workspace.headlessWs_ = this.headlessWs;
@@ -67,7 +71,7 @@ class KoovBlocks extends Component<Props, State> {
     // Custom procedures
     ScratchBlocks.Procedures.externalProcedureDefCallback = (
       mutator,
-      callback,
+      callback
     ) => {
       activeProcedures({ mutator, callback });
     };
@@ -76,7 +80,7 @@ class KoovBlocks extends Component<Props, State> {
       ScratchBlocks.PROCEDURE_CATEGORY_NAME,
       ws => {
         return ScratchBlocks.Procedures.flyoutCategory(ws, ws._headlessWs);
-      },
+      }
     );
 
     // headlessWs.current.addChangeListener(event => {
@@ -97,6 +101,9 @@ class KoovBlocks extends Component<Props, State> {
 
     this.showCode();
 
+    // Hide flyout at begining
+    this.workspace.toolbox_.flyout_.hide();
+        
     // For debugger only
     window.ws = this.workspace;
     window.ScratchBlocks = ScratchBlocks;
@@ -138,6 +145,24 @@ class KoovBlocks extends Component<Props, State> {
       console.log({ type: json.type });
       this.allowSync = true;
       return;
+    }
+
+    if (event.type === ScratchBlocks.Events.DRAG_OUTSIDE) {
+      this.isOutside = event.isOutside;
+    }
+
+    if (event.type === ScratchBlocks.Events.MOVE) {
+      this.isOutside = false;
+    }
+
+    if (event.type === ScratchBlocks.Events.END_DRAG) {
+      this.blockDelete = this.workspace.getBlockById(event.blockId);
+    }
+
+    if (this.isOutside) {
+      this.blockDelete = this.workspace.getBlockById(event.blockId);
+    } else {
+      this.blockDelete = null;
     }
 
     if (this.allowSync) {
@@ -243,18 +268,36 @@ class KoovBlocks extends Component<Props, State> {
     // this.workspace.toolbox_.scrollToCategoryById('myBlocks');
   };
 
+  handleDeleteOutside = () => {
+    if (this.blockDelete) {
+      this.blockDelete.shouldDisposeOutside_ = true;
+      this.blockDelete.dispose(false, true);
+    }
+  };
+
+  handleTouchDeleteOutside = event => {
+    const el = document.elementFromPoint(
+      event.changedTouches[0].clientX,
+      event.changedTouches[0].clientY
+    );
+    if (el === this.trashRef && this.blockDelete) {
+      this.blockDelete.shouldDisposeOutside_ = true;
+      this.blockDelete.dispose(false, true);
+    }
+  };
+
   render() {
     const { showWorkspaceModal } = this.props;
     const { tabMode } = this.state;
 
     return (
-      <>
+      <div onTouchEnd={this.handleTouchDeleteOutside}>
         <div style={{ height: 40, display: 'flex', width: 300 }}>
           <button
             style={{
               flexGrow: 1,
               flexShrink: 0,
-              backgroundColor: tabMode === 'code' ? 'red' : 'white',
+              backgroundColor: tabMode === 'code' ? 'red' : 'white'
             }}
             onClick={() => {
               this.setTabMode('code');
@@ -266,7 +309,7 @@ class KoovBlocks extends Component<Props, State> {
             style={{
               flexGrow: 1,
               flexShrink: 0,
-              backgroundColor: tabMode === 'procedures' ? 'red' : 'white',
+              backgroundColor: tabMode === 'procedures' ? 'red' : 'white'
             }}
             onClick={() => {
               this.setTabMode('procedures');
@@ -279,15 +322,31 @@ class KoovBlocks extends Component<Props, State> {
           ref={ref => {
             this.ScratchBlocksRef = ref;
           }}
-          style={{ height: 'calc(100vh - 40px)', width: '100%' }}
+          style={{ height: 'calc(100vh - 140px)', width: '100%' }}
         ></div>
+        <div
+          style={{
+            display: 'flex',
+            height: 100,
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: 'gray'
+          }}
+        >
+          <div
+            id="trash"
+            ref={ref => (this.trashRef = ref)}
+            className="btn btn-danger btn-lg"
+            onMouseUp={this.handleDeleteOutside}
+          ></div>
+        </div>
         <div
           style={{
             position: 'absolute',
             right: 10,
             top: 10,
             display: 'flex',
-            flexDirection: 'column',
+            flexDirection: 'column'
           }}
         >
           <button onClick={this.logWSXml} className="btn btn-light btn-sm">
@@ -336,7 +395,7 @@ class KoovBlocks extends Component<Props, State> {
         ></div>
         <WorkspaceModal ws={this.headlessWs} />
         <ProceduresModal handleProceduresModal={this.handleProceduresModal} />
-      </>
+      </div>
     );
   }
 }
@@ -344,21 +403,21 @@ class KoovBlocks extends Component<Props, State> {
 const mapDispatchToProp = dispatch => ({
   activeProcedures: ({
     mutator,
-    callback,
+    callback
   }: {
     mutator: Object,
-    callback: () => void,
+    callback: () => void
   }) => {
     dispatch(activeProcedures({ mutator, callback }));
   },
   showWorkspaceModal: modalName => {
     dispatch(showModal(modalName));
-  },
+  }
 });
 
 export default connect(
   null,
-  mapDispatchToProp,
+  mapDispatchToProp
 )(KoovBlocks);
 
 const toolbox = `
@@ -391,6 +450,13 @@ const toolbox = `
     colour="#FF6680"
     secondaryColour="#FF4D6A"
     custom="PROCEDURE">
+  </category>
+  <category
+    name="%{BKY_CATEGORY_BLOCKCOPY}"
+    id="blockcopy"
+    colour="#000000"
+    secondaryColour="#000000"
+    custom="BLOCKCOPY_CATEGORY">
   </category>
 </xml>
 `;

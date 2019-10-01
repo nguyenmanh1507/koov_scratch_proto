@@ -1,3 +1,48 @@
 .ReactModal__Overlay {
   z-index: 100;
 }
+
+#trash::before {
+  font-size: 20px;
+  font-family: 'Font Awesome 5 Free';
+  content: '\f2ed';
+}
+
+.blocklyToolboxDiv::after {
+  content: '';
+  opacity: 0;
+}
+
+.blocklyToolboxDiv.blockNearToolbox::after {
+  font-family: "Font Awesome 5 Free";
+  content: "\f2ed";
+  background-color: red;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: 0;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 30px;
+  opacity: 1;
+  transition: opacity 0.25s ease-in;
+}
+
+.blocklyToolboxDiv.toolboxCopy.blockNearToolbox::after {
+  font-family: "Font Awesome 5 Free";
+  content: "\f0c5";
+  background-color: blue;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: 0;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 30px;
+}
